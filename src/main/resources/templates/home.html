@@ -16,7 +16,7 @@
 	    <form method="post" enctype="multipart/form-data" th:action="@{/file}" class="card p-4 shadow-sm">
 	        <div class="mb-3">
 	            <label for="formFile" class="form-label">選擇檔案</label>
-	            <input class="form-control" type="file" name="file" id="formFile" required>
+	            <input class="form-control" type="file" name="file" id="formFile" required accept=".xlsx,.xls">
 	        </div>
 			<div class="mb-3">
 			        <label for="splitType" class="form-label">分類</label>

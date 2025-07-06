@@ -7,6 +7,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+import org.apache.poi.ooxml.POIXMLException;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,6 +87,12 @@ public class File {
 		try (InputStream input = file.getInputStream();
 				Workbook workbook = new XSSFWorkbook(input);) {
 
+			if (originalFilename == null
+					|| !(originalFilename.endsWith(".xlsx") || originalFilename.endsWith(".xls"))) {
+				response.sendError(HttpServletResponse.SC_BAD_REQUEST, "請上傳 Excel 檔案 (.xlsx 或 .xls)");
+				return;
+			}
+
 			Workbook newworkbook = fileService.file(workbook, type);
 			String filename = type + originalFilename;
 			String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8.toString()).replaceAll("\\+",
@@ -97,9 +104,15 @@ public class File {
 			newworkbook.close();
 
 			response.getOutputStream().flush();
-		} catch (IOException e) {
+		} catch (IOException | POIXMLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			try {
+				response.sendError(HttpServletResponse.SC_BAD_REQUEST, "檔案內容不是有效的 Excel 格式");
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 		}
 
 	}
