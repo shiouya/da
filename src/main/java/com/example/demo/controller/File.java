@@ -18,6 +18,7 @@ import com.example.demo.service.FileService;
 @Controller
 public class File {
 
+	private static String separator;
 	@Autowired
 	private FileService fileService;
 
@@ -35,17 +36,21 @@ public class File {
 			Workbook companyworkbook = fileService.file(workbook, "company");
 			Workbook dateworkbook = fileService.file(workbook, "date");
 
-			String userHome = System.getProperty("user.home");
-			String companyFilename = userHome + "/Downloads/公司-" + originalFilename;
-			FileOutputStream companyoutputStream = new FileOutputStream(companyFilename);
-			String dateFilename = userHome + "/Downloads/日期-" + originalFilename;
-			FileOutputStream dateoutputStream = new FileOutputStream(dateFilename);
-			companyworkbook.write(companyoutputStream);
-			dateworkbook.write(dateoutputStream);
+			String tmpDir = System.getProperty("java.io.tmpdir");
+			String companyFilename = tmpDir + File.separator + "公司-" + originalFilename;
+			FileOutputStream companyOutputStream = new FileOutputStream(companyFilename);
+
+//			String userHome = System.getProperty("user.home");
+//			String companyFilename = userHome + "/Downloads/公司-" + originalFilename;
+//			FileOutputStream companyOutputStream = new FileOutputStream(companyFilename);
+//			String dateFilename = userHome + "/Downloads/日期-" + originalFilename;
+//			FileOutputStream dateoutputStream = new FileOutputStream(dateFilename);
+			companyworkbook.write(companyOutputStream);
+//			dateworkbook.write(dateoutputStream);
 			// 關閉連線
-			companyoutputStream.close();
-			dateoutputStream.close();
-			redirectAttributes.addFlashAttribute("message", "匯出成功！檔案已儲存到：" + companyFilename + " 和 " + dateFilename);
+			companyOutputStream.close();
+//			dateoutputStream.close();
+			redirectAttributes.addFlashAttribute("message", "匯出成功！檔案已儲存到：" + companyFilename);
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
