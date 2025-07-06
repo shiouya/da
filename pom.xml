@@ -13,6 +13,9 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>war</packaging>
 	<name>da</name>
+	<build>
+    	<finalName>app</finalName>
+	</build>
 	<description>Demo project for Spring Boot</description>
 	<url/>
 	<licenses>
