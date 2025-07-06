@@ -87,7 +87,6 @@ public class File {
 				Workbook workbook = new XSSFWorkbook(input);) {
 
 			Workbook newworkbook = fileService.file(workbook, type);
-			System.out.println(type);
 			String filename = type + originalFilename;
 			String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8.toString()).replaceAll("\\+",
 					"%20");
