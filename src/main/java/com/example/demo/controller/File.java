@@ -15,7 +15,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.demo.service.FileService;
 
@@ -80,34 +79,25 @@ public class File {
 //	}
 
 	@PostMapping("/file")
-	public void postMethodName(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes,
+	public void postMethodName(@RequestParam("file") MultipartFile file, @RequestParam("type") String type,
 			HttpServletResponse response) {
 		String originalFilename = file.getOriginalFilename();
-		if (originalFilename == null || !(originalFilename.endsWith(".xlsx") || originalFilename.endsWith(".xls"))) {
-			redirectAttributes.addFlashAttribute("message", "上傳失敗：請上傳 Excel 檔案 (.xlsx 或 .xls)");
-//			return "redirect:/page/home";
-		}
 
 		try (InputStream input = file.getInputStream();
 				Workbook workbook = new XSSFWorkbook(input);) {
 
-			Workbook companyworkbook = fileService.file(workbook, "company");
-			Workbook dateworkbook = fileService.file(workbook, "date");
-
-			String filename = "公司-" + originalFilename;
+			Workbook newworkbook = fileService.file(workbook, type);
+			System.out.println(type);
+			String filename = type + originalFilename;
 			String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8.toString()).replaceAll("\\+",
 					"%20");
 
 			response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 			response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedFilename);
-			dateworkbook.write(response.getOutputStream());
-//			dateworkbook.write(response.getOutputStream());
-			dateworkbook.close();
-//			dateworkbook.close();
+			newworkbook.write(response.getOutputStream());
+			newworkbook.close();
 
 			response.getOutputStream().flush();
-//			redirectAttributes.addFlashAttribute("message", "匯出成功！檔案已儲存到：" + companyFilename);
-
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

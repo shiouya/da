@@ -13,20 +13,18 @@
 	<div class="container py-5">
 	    <h2 class="mb-4">檔案上傳</h2>
 
-	    <!-- 提示訊息 -->
-		<div th:if="${message}">
-		    <p th:text="${message}" style="color: green;"></p>
-		</div>
-
-		<div th:if="${filename}">
-		    <a th:href="@{'/download/' + ${filename}}" class="btn btn-success">下載處理後檔案</a>
-		</div>
-
 	    <form method="post" enctype="multipart/form-data" th:action="@{/file}" class="card p-4 shadow-sm">
 	        <div class="mb-3">
 	            <label for="formFile" class="form-label">選擇檔案</label>
 	            <input class="form-control" type="file" name="file" id="formFile" required>
 	        </div>
+			<div class="mb-3">
+			        <label for="splitType" class="form-label">分類</label>
+			        <select class="form-select" name="type" id="splitType" required>
+			            <option value="公司">公司</option>
+			            <option value="日期">日期</option>
+			        </select>
+			    </div>
 	        <button type="submit" class="btn btn-primary">上傳</button>
 	    </form>
 	</div>

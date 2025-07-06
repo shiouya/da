@@ -89,7 +89,7 @@ public class FileService {
 				rowindex++; // 跳過第一行
 				continue;
 			}
-			if(type=="company") {
+			if (type == "公司") {
 				Cell companyCell = row.getCell(1); // 公司
 				if (companyCell != null) {
 					String company = companyCell.getStringCellValue();
