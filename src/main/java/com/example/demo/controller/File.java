@@ -3,111 +3,49 @@ package com.example.demo.controller;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.CreationHelper;
-import org.apache.poi.ss.usermodel.DateUtil;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import com.example.demo.modal.Order;
+import com.example.demo.service.FileService;
 
 @Controller
 public class File {
 
+	@Autowired
+	private FileService fileService;
+
 	@PostMapping("/file")
 	public String postMethodName(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes) {
-		try {
-			InputStream input = file.getInputStream();
-			Workbook workbook = new XSSFWorkbook(input);
-			Workbook newworkbook = new XSSFWorkbook();
-			Sheet sheet = workbook.getSheetAt(0);
-			Row headerRow = sheet.getRow(0);
-			int numberOfColumns = headerRow.getLastCellNum();
+		String originalFilename = file.getOriginalFilename();
+		if (originalFilename == null || !(originalFilename.endsWith(".xlsx") || originalFilename.endsWith(".xls"))) {
+			redirectAttributes.addFlashAttribute("message", "上傳失敗：請上傳 Excel 檔案 (.xlsx 或 .xls)");
+			return "redirect:/page/home";
+		}
 
-			CreationHelper createHelper = newworkbook.getCreationHelper();
-			CellStyle dateCellStyle = newworkbook.createCellStyle();
-			dateCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("yyyy/MM/dd"));
+		try (InputStream input = file.getInputStream();
+				Workbook workbook = new XSSFWorkbook(input);) {
 
-			ArrayList<Order> orders = new ArrayList<>();
-			HashMap<String, List<Row>> companyMap = new HashMap<>();
+			Workbook companyworkbook = fileService.file(workbook, "company");
+			Workbook dateworkbook = fileService.file(workbook, "date");
 
-			// 跳過第一行
-			int rowindex = 0;
-			for (Row row : sheet) {
-				if (rowindex == 0) {
-					rowindex++; // 跳過第一行
-					continue;
-				}
-
-				Cell cell1 = row.getCell(1); // 公司
-				if (cell1 != null) {
-					String company = cell1.getStringCellValue();
-					companyMap.computeIfAbsent(company, k -> new ArrayList<>()).add(row);
-				}
-			}
-
-			for (Map.Entry<String, List<Row>> entry : companyMap.entrySet()) {
-				String companyKey = entry.getKey();
-				List<Row> rows = entry.getValue();
-
-				Sheet newsheet = newworkbook.createSheet(companyKey);
-
-				Row newHeaderRow = newsheet.createRow(0);
-				for (int col = 0; col < numberOfColumns; col++) {
-					Cell oldCell = headerRow.getCell(col);
-					Cell newCell = newHeaderRow.createCell(col);
-					if (oldCell != null)
-						newCell.setCellValue(oldCell.getStringCellValue());
-				}
-
-				int rowIndex = 1;
-				for (Row oldRow : rows) {
-					Row newRow = newsheet.createRow(rowIndex++);
-					for (int col = 0; col < numberOfColumns; col++) {
-						Cell oldCell = oldRow.getCell(col);
-						Cell newCell = newRow.createCell(col);
-						if (oldCell != null) {
-							switch (oldCell.getCellType()) {
-							case STRING:
-								newCell.setCellValue(oldCell.getStringCellValue());
-								break;
-							case NUMERIC:
-								if (DateUtil.isCellDateFormatted(oldCell)) {
-									newCell.setCellValue(oldCell.getDateCellValue());
-									newCell.setCellStyle(dateCellStyle);
-								} else {
-									newCell.setCellValue(oldCell.getNumericCellValue());
-								}
-								break;
-							default:
-								newCell.setCellValue("");
-							}
-						}
-					}
-				}
-				newsheet.setColumnWidth(0, 15 * 200);
-			}
 			String userHome = System.getProperty("user.home");
-			String originalFilename = file.getOriginalFilename();
-			String filename = userHome + "/Downloads/" + originalFilename;
-			FileOutputStream outputStream = new FileOutputStream(filename);
-			newworkbook.write(outputStream);
+			String companyFilename = userHome + "/Downloads/公司-" + originalFilename;
+			FileOutputStream companyoutputStream = new FileOutputStream(companyFilename);
+			String dateFilename = userHome + "/Downloads/日期-" + originalFilename;
+			FileOutputStream dateoutputStream = new FileOutputStream(dateFilename);
+			companyworkbook.write(companyoutputStream);
+			dateworkbook.write(dateoutputStream);
 			// 關閉連線
-			outputStream.close();
-			redirectAttributes.addFlashAttribute("message", "匯出成功！檔案已儲存到：" + filename);
+			companyoutputStream.close();
+			dateoutputStream.close();
+			redirectAttributes.addFlashAttribute("message", "匯出成功！檔案已儲存到：" + companyFilename + " 和 " + dateFilename);
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
