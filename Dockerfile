@@ -1,14 +1,12 @@
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 
-COPY src /root/src
-COPY pom.xml /root
+COPY . .
 
-WORKDIR /root
 RUN mvn clean package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21
 
-COPY --from=build /root/target/*.jar app.jar
+COPY --from=build /root/target/*.jar da.jar
 
 # 聲明要開啟 8080 port
 EXPOSE 8080
