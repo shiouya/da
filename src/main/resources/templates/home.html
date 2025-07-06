@@ -14,10 +14,13 @@
 	    <h2 class="mb-4">檔案上傳</h2>
 
 	    <!-- 提示訊息 -->
-	    <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
-	        <span th:text="${message}"></span>
-	        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-	    </div>
+		<div th:if="${message}">
+		    <p th:text="${message}" style="color: green;"></p>
+		</div>
+
+		<div th:if="${filename}">
+		    <a th:href="@{'/download/' + ${filename}}" class="btn btn-success">下載處理後檔案</a>
+		</div>
 
 	    <form method="post" enctype="multipart/form-data" th:action="@{/file}" class="card p-4 shadow-sm">
 	        <div class="mb-3">
