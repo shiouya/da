@@ -1,15 +1,13 @@
+# 建立階段
 FROM maven:3.9.9-eclipse-temurin-21 AS build
-
+WORKDIR /workspace
 COPY . .
-
 RUN mvn clean package -Dmaven.test.skip=true
 
+# 運行階段
 FROM eclipse-temurin:21
+WORKDIR /app
+COPY --from=build /workspace/target/app.jar app.jar
 
-COPY --from=build /root/target/*.jar da.jar
-
-# 聲明要開啟 8080 port
 EXPOSE 8080
-
-# 指定運行此 package image 的指令
 CMD ["java", "-jar", "app.jar"]
