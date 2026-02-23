@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>數獨解題器</title>
+  <style>
+    :root{--cell-size:46px;--gap:6px}
+    body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans TC',"Microsoft JhengHei",sans-serif;background:#f6f8fb;color:#222;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .card{background:#fff;border-radius:12px;box-shadow:0 6px 18px rgba(20,30,60,.08);padding:20px;max-width:760px;width:100%}
+    h1{margin:0 0 12px;font-size:20px}
+    .grid{display:grid;grid-template-columns:repeat(9, var(--cell-size));grid-gap:var(--gap);gap:var(--gap);background:linear-gradient(180deg,#fff,#fff);padding:10px;border-radius:8px}
+    .cell{width:var(--cell-size);height:var(--cell-size);display:flex;align-items:center;justify-content:center;border:1px solid #e3e7ee;border-radius:6px;background:#fbfdff}
+    .cell input{width:100%;height:100%;border:0;background:transparent;font-size:18px;text-align:center;outline:none}
+    /* heavier borders for 3x3 boxes */
+    .cell.box-right{border-right:3px solid #cfd8e6}
+    .cell.box-bottom{border-bottom:3px solid #cfd8e6}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    button{padding:8px 12px;border-radius:8px;border:0;background:#2b6be6;color:#fff;font-weight:600;cursor:pointer}
+    button.secondary{background:#6c757d}
+    .result{margin-top:12px;font-size:14px}
+    .msg{padding:8px;border-radius:8px;background:#fff8e6;border:1px solid #ffe8a8}
+    @media (max-width:520px){:root{--cell-size:38px}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>數獨解題器</h1>
+    <p style="margin:0 0 12px;color:#555">請在格子輸入 1-9，空格保留為空或輸入 0。按「解題」會呼叫你的後端 API：<code>/api/sudoku/solve</code>（POST，body 為 9x9 的陣列）。</p>
+
+    <div id="grid" class="grid" role="grid" aria-label="sudoku-grid"></div>
+
+    <div class="controls">
+      <button id="solveBtn">解題</button>
+      <button id="clearBtn" class="secondary">清除</button>
+      <button id="sampleBtn" class="secondary">填入範例</button>
+      <button id="exportBtn" class="secondary">匯出 JSON</button>
+      <button id="importBtn" class="secondary">匯入 JSON</button>
+      <input id="importArea" placeholder='貼上 JSON 或 81 字元（可選）' style="flex:1;padding:8px;border-radius:8px;border:1px solid #e5e7eb" />
+    </div>
+
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    const gridEl = document.getElementById('grid');
+    const resultEl = document.getElementById('result');
+    const solveBtn = document.getElementById('solveBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const importArea = document.getElementById('importArea');
+
+    // 建立 9x9 格子
+    const inputs = [];
+    for (let r = 0; r < 9; r++) {
+      inputs[r] = [];
+      for (let c = 0; c < 9; c++) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'cell';
+        // 加粗 box 邊界
+        if ((c+1) % 3 === 0 && c !== 8) wrapper.classList.add('box-right');
+        if ((r+1) % 3 === 0 && r !== 8) wrapper.classList.add('box-bottom');
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'numeric';
+        input.maxLength = 1;
+        input.placeholder = '';
+        input.setAttribute('aria-label', `cell-${r}-${c}`);
+
+        // 允許鍵盤快速輸入與刪除
+        input.addEventListener('input', (e) => {
+          const v = e.target.value.replace(/[^0-9]/g, '');
+          if (v.length === 0) { e.target.value = ''; return; }
+          const digit = v[0];
+          if (digit === '0') e.target.value = ''; else e.target.value = digit;
+        });
+
+        // 方向鍵移動
+        input.addEventListener('keydown', (e) => {
+          const key = e.key;
+          let nr = r, nc = c;
+          if (key === 'ArrowUp') nr = Math.max(0, r-1);
+          if (key === 'ArrowDown') nr = Math.min(8, r+1);
+          if (key === 'ArrowLeft') nc = Math.max(0, c-1);
+          if (key === 'ArrowRight') nc = Math.min(8, c+1);
+          if (nr !== r || nc !== c) {
+            e.preventDefault();
+            inputs[nr][nc].focus();
+          }
+        });
+
+        wrapper.appendChild(input);
+        gridEl.appendChild(wrapper);
+        inputs[r][c] = input;
+      }
+    }
+
+    function readGrid() {
+      const grid = [];
+      for (let r = 0; r < 9; r++) {
+        grid[r] = [];
+        for (let c = 0; c < 9; c++) {
+          const v = inputs[r][c].value.trim();
+          grid[r][c] = v === '' ? 0 : parseInt(v, 10);
+        }
+      }
+      return grid;
+    }
+
+    function fillGrid(arr) {
+      for (let r = 0; r < 9; r++)
+        for (let c = 0; c < 9; c++)
+          inputs[r][c].value = (arr && arr[r] && arr[r][c] && arr[r][c] !== 0) ? String(arr[r][c]) : '';
+    }
+
+    clearBtn.addEventListener('click', () => { fillGrid(null); resultEl.innerHTML = ''; });
+
+    sampleBtn.addEventListener('click', () => {
+      const sample = [
+        [5,3,0,0,7,0,0,0,0],
+        [6,0,0,1,9,5,0,0,0],
+        [0,9,8,0,0,0,0,6,0],
+        [8,0,0,0,6,0,0,0,3],
+        [4,0,0,8,0,3,0,0,1],
+        [7,0,0,0,2,0,0,0,6],
+        [0,6,0,0,0,0,2,8,0],
+        [0,0,0,4,1,9,0,0,5],
+        [0,0,0,0,8,0,0,7,9]
+      ];
+      fillGrid(sample);
+      resultEl.innerHTML = '';
+    });
+
+    exportBtn.addEventListener('click', () => {
+      const grid = readGrid();
+      navigator.clipboard?.writeText(JSON.stringify(grid)).then(() => {
+        resultEl.innerHTML = '<div class="msg">已複製 JSON 到剪貼簿</div>';
+      }).catch(() => {
+        resultEl.innerHTML = '<div class="msg">請手動複製: ' + JSON.stringify(grid) + '</div>';
+      });
+    });
+
+    importBtn.addEventListener('click', () => {
+      const raw = importArea.value.trim();
+      if (!raw) { resultEl.innerHTML = '<div class="msg">請輸入 JSON 或 81 字元字串於輸入框</div>'; return; }
+      try {
+        let arr;
+        if (/^[0-9]{81}$/.test(raw)) {
+          // 81 chars -> convert
+          arr = [];
+          for (let r=0;r<9;r++){ arr[r]=[]; for (let c=0;c<9;c++){ const ch = raw[r*9+c]; arr[r][c]= ch==='0'?0:parseInt(ch,10);} }
+        } else {
+          arr = JSON.parse(raw);
+        }
+        if (!Array.isArray(arr) || arr.length !== 9) throw new Error('格式錯誤');
+        fillGrid(arr);
+        resultEl.innerHTML = '';
+      } catch (e) {
+        resultEl.innerHTML = '<div class="msg">匯入失敗: ' + (e.message||e) + '</div>';
+      }
+    });
+
+    async function solve() {
+      resultEl.innerHTML = '<div class="msg">計算中…</div>';
+      const grid = readGrid();
+      // 基本驗證
+      for (let r=0;r<9;r++) for (let c=0;c<9;c++) {
+        const v = grid[r][c];
+        if (typeof v !== 'number' || v < 0 || v > 9) {
+          resultEl.innerHTML = '<div class="msg">輸入格值必須為 1-9 或空白</div>'; return;
+        }
+      }
+
+      try {
+        const resp = await fetch('/api/sudoku/solve', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(grid)
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(()=>({error:resp.statusText}));
+          throw new Error(err.error || err.message || resp.statusText || '伺服器錯誤');
+        }
+        const solved = await resp.json();
+        // 伺服器預期回傳整個 solved grid (int[][]) - 若你的 API 包裹在物件內，請調整此處
+        const solvedGrid = Array.isArray(solved) ? solved : (solved.solvedGrid || solved.solvedGrid || solved.solved);
+        if (!Array.isArray(solvedGrid)) throw new Error('回傳格式非陣列');
+        fillGrid(solvedGrid);
+        resultEl.innerHTML = '<div class="msg">已解出（結果已填入格子）</div>';
+      } catch (e) {
+        resultEl.innerHTML = '<div class="msg">錯誤: ' + (e.message||e) + '</div>';
+      }
+    }
+
+    solveBtn.addEventListener('click', solve);
+
+    // Enter 在最後一格按下會觸發解題
+    inputs[8][8].addEventListener('keydown', (e)=>{ if (e.key === 'Enter') solve(); });
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>圖片編輯器 - 挖空透明</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #canvasContainer {
+            position: relative;
+            display: inline-block;
+        }
+        /* 棋盤格背景 */
+        #checkerboard {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 0 / 20px 20px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        #canvas {
+            position: relative;
+            z-index: 1;
+            border: 1px solid #ccc;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body>
+<h2>上傳並編輯圖片（透明挖空）</h2>
+
+<input type="file" id="imageUpload" accept="image/*">
+
+<div id="canvasContainer">
+    <div id="checkerboard"></div>
+    <canvas id="canvas"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let img = new Image();
+let startX, startY, endX, endY, isDragging = false;
+let currentImageData = null;
+
+// 上傳圖片
+document.getElementById('imageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            document.getElementById('checkerboard').style.width = img.width + 'px';
+            document.getElementById('checkerboard').style.height = img.height + 'px';
+            ctx.drawImage(img, 0, 0);
+            currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+// 滑鼠事件 - 矩形選取
+canvas.addEventListener('mousedown', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    isDragging = true;
+});
+
+canvas.addEventListener('mousemove', function(e) {
+    if (!isDragging || !currentImageData) return;
+    const rect = canvas.getBoundingClientRect();
+    endX = e.clientX - rect.left;
+    endY = e.clientY - rect.top;
+
+    // 重繪已挖空圖片 + 畫紅框
+    ctx.putImageData(currentImageData, 0, 0);
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+});
+
+canvas.addEventListener('mouseup', function(e) {
+    if (!currentImageData) return;
+    isDragging = false;
+    const rect = canvas.getBoundingClientRect();
+    endX = e.clientX - rect.left;
+    endY = e.clientY - rect.top;
+
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const w = Math.abs(endX - startX);
+    const h = Math.abs(endY - startY);
+
+    // 直接操作 currentImageData 的 alpha
+    for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col++) {
+            const idx = ((y + row) * canvas.width + (x + col)) * 4;
+            currentImageData.data[idx + 3] = 0; // alpha = 0
+        }
+    }
+
+    // 重繪
+    ctx.putImageData(currentImageData, 0, 0);
+});
+</script>
+</body>
+</html>

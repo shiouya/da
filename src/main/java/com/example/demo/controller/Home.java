@@ -11,4 +11,14 @@ public class Home {
 		return "home";
 	}
 
+	@GetMapping("/page/png")
+	public String png() {
+		return "png";
+	}
+
+	@GetMapping("/page/sudo")
+	public String png1() {
+		return "sudo";
+	}
+
 }
